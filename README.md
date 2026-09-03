@@ -1,126 +1,99 @@
-# Bed Interval Overlapper
+# BED Interval Overlapper & Genomic Operations Toolkit
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
-
-<div align="center">
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
-
-</div>
+A high-performance, pure Python genomic interval calculation engine implementing sweep-line interval operations, reciprocal overlap filters, coverage profiling, and Jaccard similarity metrics conforming to the **UCSC BED Format Specification** (0-based half-open coordinates $[start, end)$).
 
 ---
 
-## 📖 What It Does
+## Genomic Coordinate Conventions & Mathematical Models
 
-BED Interval Overlapper & Genomic Interval Operations Toolkit.
+### 1. Zero-Based Half-Open Interval Algebra
+A genomic feature spanning chromosome coordinates from start to end represents nucleotides:
+$$\text{Coordinates: } [start, end) \implies \text{Length} = end - start$$
 
-Implements:
-- 0-based half-open [start, end) BED interval parsing (BED3 to BED6+)
-- Sweep-line interval intersection (equivalent to bedtools intersect)
-- Reciprocal overlap fraction, min overlap length, and strand-aware matching
-- Interval merging with gap tolerance (equivalent to bedtools merge)
-- Interval subtraction / difference (equivalent to bedtools subtract)
-- Jaccard Similarity Index calculation for genomic feature sets
-- Binned coverage depth profiling & breadth of coverage statistics
-- BEDPE paired-end fragment spanning and concordance filtering
-- SVG genome browser track visualizer
+Given two overlapping intervals $A = [s_A, e_A)$ and $B = [s_B, e_B)$ on the same chromosome:
+$$\text{Overlap Length: } \text{len}(A \cap B) = \max(0, \min(e_A, e_B) - \max(s_A, s_B))$$
+$$\text{Overlap Fraction } f_A = \frac{\text{len}(A \cap B)}{\text{len}(A)}, \quad f_B = \frac{\text{len}(A \cap B)}{\text{len}(B)}$$
 
-Pure Python Standard Library (no external dependencies required).
+### 2. Reciprocal Overlap & Jaccard Similarity
+- **Reciprocal Overlap Constraint:** Validated if $f_A \ge \theta$ and $f_B \ge \theta$ where $\theta \in (0, 1]$.
+- **Genomic Jaccard Similarity Index:**
+$$J(A_{\text{set}}, B_{\text{set}}) = \frac{\text{Total Intersecting Base Pairs}}{\text{Total Union Base Pairs}} = \frac{\sum |A_i \cap B_j|}{\sum |A_i \cup B_j|}$$
 
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Core Algorithmic & Evaluation Engines
-
-- **`BedInterval`**: Genomic interval in 0-based half-open coordinate space [start, end).
-- **`BedpeRecord`**: Paired-end genomic interval (BEDPE).
-- **`BedParser`**: Parses and formats BED format files and strings.
-- **`IntervalEngine`**: High-performance genomic interval operations.
+### 3. Sweep-Line Interval Merging & Coverage
+Sorted interval boundaries are processed as event points $E = \{(s_i, +1), (e_i, -1)\}$. Active interval count increments at starts and decrements at ends, computing depth profile bins and merging intervals with distance gap tolerance $d$.
 
 ---
 
-## 📐 Mathematical Formulation & Logic
+## Features
 
-```text
-  """Calculate overlap size in base pairs."""
-  score = fields[4] if len(fields) > 4 else "."
-  Calculate Jaccard similarity index:
-  Calculate genomic coverage depth profile using sweep-line event points.
-```
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### 1. Guided Interactive Mode
-```bash
-python cli.py
-```
-
-### 2. Direct Parameterized Evaluation
-```bash
-python cli.py --a <value> --b <value> --min-overlap <value> --input <value>
-```
-
-### Parameter Reference
-- `--a`: Specifies input measurement or parameter value.
-- `--b`: Specifies input measurement or parameter value.
-- `--min-overlap`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--distance`: Specifies input measurement or parameter value.
-- `--bin-size`: Specifies input measurement or parameter value.
-- `--json`: Specifies input measurement or parameter value.
-- `--interactive`: Specifies input measurement or parameter value.
-- `---`: Specifies input measurement or parameter value.
-- `--fraction-a`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `suite_name` | Parameter / observation metric | Required |
-| `system_slug` | Parameter / observation metric | Required |
-| `standard_reference` | Parameter / observation metric | Required |
-| `test_cases` | Parameter / observation metric | Required |
+- **Standard Operations:** Full suite equivalent to `bedtools`:
+  - `intersect`: Intersection with minimum overlap, fraction $f$, and reciprocal constraints.
+  - `merge`: Linear-time sweep-line merging with user-defined gap distance.
+  - `subtract`: Complementary subtraction yielding remaining fragments.
+  - `jaccard`: Base-pair intersection-over-union metric.
+  - `coverage`: Binned depth profiling across genomic tracks.
+- **Dual Format Ingestion:** Seamlessly reads standard `.bed` format (BED3 to BED6) and tabular `.csv` files.
+- **High-Throughput Batch Processing:** Command-line batch execution for genomic feature annotation pipelines.
+- **Zero Runtime Dependencies:** Standalone implementation utilizing only the Python Standard Library.
 
 ---
 
-## 🛡️ Security & Enterprise Architecture
+## Installation & Requirements
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+- Python 3.10+ (tested on 3.10, 3.11, 3.12)
+- Zero external runtime dependencies.
 
 ```bash
-pytest -v
-```
-
-Execute high-throughput batch simulation benchmarks:
-
-```bash
-python simulator.py --tasks 1000 --concurrency 8
+git clone https://github.com/abusuraihsakhri/bed-interval-overlapper.git
+cd bed-interval-overlapper
 ```
 
 ---
 
-## 🐳 Container Deployment
+## CLI Usage
+
+### 1. Merge Overlapping Genomic Intervals
+```bash
+python cli.py merge -i sample.csv --distance 50
+```
+
+### 2. Intersect Two Interval Sets
+```bash
+python cli.py intersect -a sample.csv -b target.bed --min-overlap 100 --reciprocal 0.5
+```
+
+### 3. Calculate Genomic Jaccard Index
+```bash
+python cli.py jaccard -a set1.bed -b set2.bed
+```
+
+### 4. Batch Process CSV/BED Files
+```bash
+python cli.py batch --input sample.csv --output results.csv
+```
+
+---
+
+## Python API Quickstart
+
+```python
+from bed_overlap import IntervalEngine, BedParser
+
+intervals = BedParser.parse_csv_file("sample.csv")
+merged = IntervalEngine.merge(intervals, max_distance=0)
+
+print(f"Original: {len(intervals)} intervals -> Merged: {len(merged)} intervals")
+for m in merged:
+    print(f"  {m.chrom}:{m.start}-{m.end} (len={len(m)})")
+```
+
+---
+
+## Testing & Verification
+
+Run the test suite:
 
 ```bash
-docker build -t bed-interval-overlapper .
-docker run -p 8000:8000 bed-interval-overlapper
+python -m pytest -p no:zarr
 ```
+

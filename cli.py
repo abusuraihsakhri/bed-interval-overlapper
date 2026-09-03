@@ -149,6 +149,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_bm.add_argument("benchmark_name", nargs="?", default="promoters_vs_h3k4me3", help="Curated benchmark pair name")
     p_bm.add_argument("--json", action="store_true", help="Output in JSON format")
 
+    # Batch
+    p_batch = subparsers.add_parser("batch", help="Batch process genomic intervals from CSV or BED file to output CSV/BED")
+    p_batch.add_argument("--input", "-i", required=True, help="Input CSV or BED file path")
+    p_batch.add_argument("--output", "-o", required=True, help="Output CSV or BED file path")
+    p_batch.add_argument("--operation", "-op", choices=["merge", "coverage", "stats"], default="merge",
+                         help="Operation to perform on input intervals (default: merge)")
+    p_batch.add_argument("--distance", "-d", type=int, default=0, help="Merge distance gap in bp (default: 0)")
+    p_batch.add_argument("--bin-size", type=int, default=1000, help="Coverage bin size in bp (default: 1000)")
+
     # Global flags
     parser.add_argument("--list-benchmarks", action="store_true", help="List all available curated benchmark pairs")
     parser.add_argument("--interactive", "-i", action="store_true", help="Launch interactive shell")
@@ -293,6 +302,54 @@ def main(argv: Optional[List[str]] = None) -> int:
         IntervalEngine.render_svg(set_a, set_b, args.output)
         print(f"SVG track visualization written to {args.output}")
         return 0
+
+    if args.subcommand == "batch":
+        import csv
+        intervals = BedParser.load_intervals(args.input)
+        if not intervals:
+            print(f"Warning: No valid intervals loaded from {args.input}", file=sys.stderr)
+
+        is_csv_output = args.output.lower().endswith(".csv")
+
+        if args.operation == "merge":
+            result = IntervalEngine.merge(intervals, max_distance=args.distance)
+            with open(args.output, "w", encoding="utf-8", newline="") as out_f:
+                if is_csv_output:
+                    writer = csv.writer(out_f)
+                    writer.writerow(["chrom", "start", "end", "name", "score", "strand", "length"])
+                    for iv in result:
+                        writer.writerow([iv.chrom, iv.start, iv.end, iv.name, iv.score, iv.strand, iv.length])
+                else:
+                    for iv in result:
+                        out_f.write(iv.to_bed_line() + "\n")
+            print(f"Batch merge completed: {len(intervals)} intervals merged into {len(result)} intervals -> {args.output}")
+            return 0
+
+        elif args.operation == "coverage":
+            cov = IntervalEngine.coverage_profile(intervals, bin_size=args.bin_size)
+            with open(args.output, "w", encoding="utf-8", newline="") as out_f:
+                if is_csv_output:
+                    writer = csv.writer(out_f)
+                    writer.writerow(["chrom", "span_start", "span_end", "span_bp", "covered_bp", "breadth_coverage_fraction", "mean_depth", "max_depth"])
+                    for chrom, data in cov.get("chromosomes", {}).items():
+                        writer.writerow([chrom, data["span_start"], data["span_end"], data["span_bp"], data["covered_bp"], data["breadth_coverage_fraction"], data["mean_depth"], data["max_depth"]])
+                else:
+                    out_f.write(json.dumps(cov, indent=2))
+            print(f"Batch coverage profiling completed: {len(intervals)} intervals analyzed -> {args.output}")
+            return 0
+
+        elif args.operation == "stats":
+            with open(args.output, "w", encoding="utf-8", newline="") as out_f:
+                writer = csv.writer(out_f) if is_csv_output else None
+                if is_csv_output:
+                    writer.writerow(["chrom", "start", "end", "length", "name", "score", "strand"])
+                    for iv in intervals:
+                        writer.writerow([iv.chrom, iv.start, iv.end, iv.length, iv.name, iv.score, iv.strand])
+                else:
+                    for iv in intervals:
+                        out_f.write(f"{iv.to_bed_line()}\t{iv.length}\n")
+            print(f"Batch stats processing completed: {len(intervals)} intervals -> {args.output}")
+            return 0
 
     parser.print_help()
     return 0

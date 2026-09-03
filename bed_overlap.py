@@ -143,15 +143,50 @@ class BedParser:
         return intervals
 
     @classmethod
-    def load_bed_file(cls, filepath: str) -> List[BedInterval]:
-        """Read BED file from disk."""
+    def load_intervals(cls, filepath: str) -> List[BedInterval]:
+        """Read intervals from disk, automatically detecting BED or CSV format."""
+        import csv
         intervals = []
         with open(filepath, "r", encoding="utf-8-sig") as f:
+            first_line = f.readline()
+            f.seek(0)
+            # Check if CSV format (contains comma in first non-comment line)
+            if "," in first_line:
+                reader = csv.DictReader(f)
+                fieldnames = [c.strip().lower() for c in (reader.fieldnames or [])]
+                # Map headers
+                chrom_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("chrom", "chromosome", "chr", "seqname")), None)
+                start_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("start", "chromstart", "pos", "begin")), None)
+                end_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("end", "chromend", "stop")), None)
+                name_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("name", "gene", "feature", "id", "symbol")), None)
+                score_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("score", "signal", "value")), None)
+                strand_col = next((c for c in (reader.fieldnames or []) if c.strip().lower() in ("strand", "orientation")), None)
+
+                if chrom_col and start_col and end_col:
+                    for row in reader:
+                        try:
+                            ch = row[chrom_col].strip()
+                            st = int(row[start_col].strip())
+                            en = int(row[end_col].strip())
+                            nm = row[name_col].strip() if name_col and row.get(name_col) else "."
+                            sc = row[score_col].strip() if score_col and row.get(score_col) else "."
+                            std = row[strand_col].strip() if strand_col and row.get(strand_col) else "."
+                            intervals.append(BedInterval(ch, st, en, name=nm, score=sc, strand=std))
+                        except (ValueError, TypeError, KeyError):
+                            continue
+                    return intervals
+
+            # Standard BED parsing
             for line in f:
                 iv = cls.parse_line(line)
                 if iv:
                     intervals.append(iv)
         return intervals
+
+    @classmethod
+    def load_bed_file(cls, filepath: str) -> List[BedInterval]:
+        """Read BED or CSV file from disk."""
+        return cls.load_intervals(filepath)
 
 
 class IntervalEngine:
