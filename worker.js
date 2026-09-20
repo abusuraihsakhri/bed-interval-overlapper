@@ -36,8 +36,18 @@ payload = json.loads(payload_json)
 fmt = payload.get("format", "auto")
 
 def parse_set(text, slot):
-    if fmt == "bed":
+    selected_format = fmt
+    if selected_format == "auto":
+        first_data_line = next(
+            (line.strip() for line in text.splitlines()
+             if line.strip() and not line.lstrip().startswith(("#", "track", "browser"))),
+            "",
+        )
+        selected_format = "csv" if "," in first_data_line else "bed"
+
+    if selected_format == "bed":
         return BedParser.parse_bed_string(text)
+
     path = f"/tmp/bed_interval_{slot}.csv"
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
