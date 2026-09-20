@@ -217,6 +217,15 @@ class IntervalEngine:
         Sweep-line intersection between two interval sets.
         Supports min overlap bp, fractional overlap of A/B, reciprocal fraction, and strandedness.
         """
+        if min_overlap_bp < 1:
+            raise ValueError("min_overlap_bp must be at least 1.")
+        if not 0.0 <= fraction_a <= 1.0:
+            raise ValueError("fraction_a must be between 0 and 1.")
+        if not 0.0 <= fraction_b <= 1.0:
+            raise ValueError("fraction_b must be between 0 and 1.")
+        if strand_mode not in {"any", "same", "opposite"}:
+            raise ValueError("strand_mode must be 'any', 'same', or 'opposite'.")
+
         grouped_a = cls.group_by_chromosome(set_a)
         grouped_b = cls.group_by_chromosome(set_b)
         results: List[Dict[str, Any]] = []
@@ -289,6 +298,9 @@ class IntervalEngine:
         Merge overlapping or adjacent intervals within max_distance bp.
         Equivalent to bedtools merge.
         """
+        if max_distance < 0:
+            raise ValueError("max_distance cannot be negative.")
+
         grouped = cls.group_by_chromosome(intervals)
         merged_all: List[BedInterval] = []
 
@@ -397,6 +409,8 @@ class IntervalEngine:
         """
         Calculate genomic coverage depth profile using sweep-line event points.
         """
+        if bin_size <= 0:
+            raise ValueError("bin_size must be a positive integer.")
         if not intervals:
             return {"total_intervals": 0, "total_covered_bp": 0, "chromosomes": {}}
 
