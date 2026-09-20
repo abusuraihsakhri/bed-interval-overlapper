@@ -46,6 +46,8 @@ def test_browser_assets_exist_and_runtime_is_pinned():
     worker = (ROOT / "worker.js").read_text(encoding="utf-8")
     assert 'PYODIDE_VERSION = "314.0.7"' in worker
     assert 'fetch("bed_overlap.py"' in worker
+    assert 'selected_format == "auto"' in worker
+    assert '"csv" if "," in first_data_line else "bed"' in worker
 
 
 def test_analyze_button_is_visible_action():
