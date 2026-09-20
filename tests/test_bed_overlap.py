@@ -309,5 +309,34 @@ class TestCLIInterface(unittest.TestCase):
             self.assertIn("promoters_vs_h3k4me3", output)
 
 
+class TestInputValidation(unittest.TestCase):
+    def test_engine_rejects_invalid_numeric_options(self):
+        interval = [BedInterval("chr1", 100, 200)]
+
+        with self.assertRaises(ValueError):
+            IntervalEngine.intersect(interval, interval, min_overlap_bp=0)
+        with self.assertRaises(ValueError):
+            IntervalEngine.intersect(interval, interval, fraction_a=1.1)
+        with self.assertRaises(ValueError):
+            IntervalEngine.intersect(interval, interval, fraction_b=-0.1)
+        with self.assertRaises(ValueError):
+            IntervalEngine.intersect(interval, interval, strand_mode="invalid")
+        with self.assertRaises(ValueError):
+            IntervalEngine.merge(interval, max_distance=-1)
+        with self.assertRaises(ValueError):
+            IntervalEngine.coverage_profile(interval, bin_size=0)
+
+    def test_cli_rejects_invalid_numeric_options(self):
+        with patch("sys.stderr", new=StringIO()):
+            with self.assertRaises(SystemExit):
+                cli.main(["intersect", "--a", "a.bed", "--b", "b.bed", "--min-overlap", "0"])
+            with self.assertRaises(SystemExit):
+                cli.main(["intersect", "--a", "a.bed", "--b", "b.bed", "--fraction-a", "1.5"])
+            with self.assertRaises(SystemExit):
+                cli.main(["merge", "--input", "a.bed", "--distance", "-1"])
+            with self.assertRaises(SystemExit):
+                cli.main(["coverage", "--input", "a.bed", "--bin-size", "0"])
+
+
 if __name__ == "__main__":
     unittest.main()

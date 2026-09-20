@@ -27,6 +27,27 @@ from bed_overlap import (
 )
 
 
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be an integer of at least 1")
+    return parsed
+
+
+def nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be a non-negative integer")
+    return parsed
+
+
+def overlap_fraction(value: str) -> float:
+    parsed = float(value)
+    if not 0.0 <= parsed <= 1.0:
+        raise argparse.ArgumentTypeError("must be between 0 and 1")
+    return parsed
+
+
 def format_intervals_table(intervals: List[BedInterval]) -> str:
     lines = ["  Chrom       Start         End       Length  Name                 Strand"]
     lines.append("  " + "-" * 75)
@@ -107,9 +128,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_inter = subparsers.add_parser("intersect", help="Find overlaps between BED set A and set B")
     p_inter.add_argument("--a", required=True, help="Path to BED file A (query)")
     p_inter.add_argument("--b", required=True, help="Path to BED file B (target)")
-    p_inter.add_argument("--min-overlap", type=int, default=1, help="Minimum overlap in bp (default: 1)")
-    p_inter.add_argument("--fraction-a", type=float, default=0.0, help="Minimum fraction of A that must overlap")
-    p_inter.add_argument("--fraction-b", type=float, default=0.0, help="Minimum fraction of B that must overlap")
+    p_inter.add_argument("--min-overlap", type=positive_int, default=1, help="Minimum overlap in bp (default: 1)")
+    p_inter.add_argument("--fraction-a", type=overlap_fraction, default=0.0, help="Minimum fraction of A that must overlap")
+    p_inter.add_argument("--fraction-b", type=overlap_fraction, default=0.0, help="Minimum fraction of B that must overlap")
     p_inter.add_argument("--reciprocal", action="store_true", help="Require reciprocal overlap fraction")
     p_inter.add_argument("--strand", choices=["any", "same", "opposite"], default="any", help="Strand matching mode")
     p_inter.add_argument("--json", action="store_true", help="Output in JSON format")
@@ -117,7 +138,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Merge
     p_merge = subparsers.add_parser("merge", help="Merge overlapping/adjacent intervals in a BED file")
     p_merge.add_argument("--input", "-i", required=True, help="Path to BED file to merge")
-    p_merge.add_argument("--distance", "-d", type=int, default=0, help="Maximum distance gap to merge across (default: 0)")
+    p_merge.add_argument("--distance", "-d", type=nonnegative_int, default=0, help="Maximum distance gap to merge across (default: 0)")
     p_merge.add_argument("--json", action="store_true", help="Output in JSON format")
 
     # Subtract
@@ -135,7 +156,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Coverage
     p_cov = subparsers.add_parser("coverage", help="Calculate genomic coverage depth profile")
     p_cov.add_argument("--input", "-i", required=True, help="Path to BED file")
-    p_cov.add_argument("--bin-size", type=int, default=1000, help="Bin size for depth profiling in bp")
+    p_cov.add_argument("--bin-size", type=positive_int, default=1000, help="Bin size for depth profiling in bp")
     p_cov.add_argument("--json", action="store_true", help="Output in JSON format")
 
     # Visualize
@@ -155,8 +176,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_batch.add_argument("--output", "-o", required=True, help="Output CSV or BED file path")
     p_batch.add_argument("--operation", "-op", choices=["merge", "coverage", "stats"], default="merge",
                          help="Operation to perform on input intervals (default: merge)")
-    p_batch.add_argument("--distance", "-d", type=int, default=0, help="Merge distance gap in bp (default: 0)")
-    p_batch.add_argument("--bin-size", type=int, default=1000, help="Coverage bin size in bp (default: 1000)")
+    p_batch.add_argument("--distance", "-d", type=nonnegative_int, default=0, help="Merge distance gap in bp (default: 0)")
+    p_batch.add_argument("--bin-size", type=positive_int, default=1000, help="Coverage bin size in bp (default: 1000)")
 
     # Global flags
     parser.add_argument("--list-benchmarks", action="store_true", help="List all available curated benchmark pairs")

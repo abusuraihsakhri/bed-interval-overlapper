@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Run BED interval intersection, merge, subtraction, Jaccard, and coverage operations locally in the browser.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; worker-src 'self'; connect-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';">
+  <title>BED Interval Overlapper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">BED</div>
+        <div>
+          <h1>BED Interval Overlapper</h1>
+          <p>Genomic interval operations in your browser</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span id="runtime-status" class="status-pill" role="status">Runtime loads on first analysis</span>
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch to dark theme" title="Toggle theme">◐</button>
+        <a class="icon-button link-button" href="https://github.com/abusuraihsakhri/bed-interval-overlapper" target="_blank" rel="noopener noreferrer" aria-label="Open repository" title="Open repository">↗</a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel input-panel" aria-labelledby="input-heading">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Input</span>
+            <h2 id="input-heading">Interval sets</h2>
+          </div>
+          <button id="load-sample" class="text-button" type="button">Load sample</button>
+        </div>
+
+        <div class="controls-grid primary-controls">
+          <label>
+            <span>Operation</span>
+            <select id="operation">
+              <option value="intersect">Intersect</option>
+              <option value="merge">Merge</option>
+              <option value="subtract">Subtract</option>
+              <option value="jaccard">Jaccard</option>
+              <option value="coverage">Coverage</option>
+            </select>
+          </label>
+          <label>
+            <span>Input format</span>
+            <select id="input-format">
+              <option value="auto">Auto detect</option>
+              <option value="bed">BED</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="dataset-grid" id="dataset-grid">
+          <div class="dataset-card">
+            <div class="dataset-header">
+              <label for="set-a">Set A</label>
+              <button class="file-button" type="button" data-file-target="a">Open file</button>
+              <input id="file-a" type="file" accept=".bed,.csv,.tsv,.txt,text/plain,text/csv" hidden>
+            </div>
+            <textarea id="set-a" spellcheck="false" aria-label="Set A BED or CSV data" placeholder="chr1&#9;100&#9;300&#9;A1&#10;chr1&#9;500&#9;700&#9;A2"></textarea>
+          </div>
+
+          <div class="dataset-card" id="set-b-card">
+            <div class="dataset-header">
+              <label for="set-b">Set B</label>
+              <button class="file-button" type="button" data-file-target="b">Open file</button>
+              <input id="file-b" type="file" accept=".bed,.csv,.tsv,.txt,text/plain,text/csv" hidden>
+            </div>
+            <textarea id="set-b" spellcheck="false" aria-label="Set B BED or CSV data" placeholder="chr1&#9;200&#9;400&#9;B1&#10;chr1&#9;550&#9;650&#9;B2"></textarea>
+          </div>
+        </div>
+
+        <div id="intersect-options" class="options-row">
+          <label>
+            <span>Min overlap (bp)</span>
+            <input id="min-overlap" type="number" min="1" step="1" value="1">
+          </label>
+          <label>
+            <span>Fraction A</span>
+            <input id="fraction-a" type="number" min="0" max="1" step="0.05" value="0">
+          </label>
+          <label>
+            <span>Fraction B</span>
+            <input id="fraction-b" type="number" min="0" max="1" step="0.05" value="0">
+          </label>
+          <label>
+            <span>Strand</span>
+            <select id="strand-mode">
+              <option value="any">Any</option>
+              <option value="same">Same</option>
+              <option value="opposite">Opposite</option>
+            </select>
+          </label>
+          <label class="check-label">
+            <input id="reciprocal" type="checkbox">
+            <span>Reciprocal</span>
+          </label>
+        </div>
+
+        <div id="merge-options" class="options-row hidden">
+          <label>
+            <span>Merge distance (bp)</span>
+            <input id="merge-distance" type="number" step="1" value="0">
+          </label>
+        </div>
+
+        <div id="coverage-options" class="options-row hidden">
+          <label>
+            <span>Bin size (bp)</span>
+            <input id="bin-size" type="number" min="1" step="1" value="1000">
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button id="analyze" class="primary-button" type="button">Analyze intervals</button>
+          <button id="clear" class="secondary-button" type="button">Clear</button>
+          <span id="input-note" class="input-note">0 intervals loaded</span>
+        </div>
+      </section>
+
+      <section class="panel output-panel" aria-labelledby="output-heading">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Results</span>
+            <h2 id="output-heading">Analysis output</h2>
+          </div>
+          <button id="download-results" class="text-button" type="button" disabled>Download JSON</button>
+        </div>
+
+        <div id="summary-cards" class="summary-grid" aria-live="polite">
+          <div class="metric-card"><span>Status</span><strong>Ready</strong></div>
+          <div class="metric-card"><span>Set A</span><strong>0</strong></div>
+          <div class="metric-card"><span>Set B</span><strong>0</strong></div>
+          <div class="metric-card"><span>Result</span><strong>—</strong></div>
+        </div>
+
+        <div id="message" class="message-box" role="alert" hidden></div>
+
+        <div class="result-wrap">
+          <table id="result-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+          <div id="empty-state" class="empty-state">
+            <div class="empty-icon" aria-hidden="true">↔</div>
+            <h3>No analysis yet</h3>
+            <p>Paste or open BED/CSV intervals, choose an operation, then select <strong>Analyze intervals</strong>.</p>
+          </div>
+        </div>
+
+        <footer class="privacy-note">Data stays in this browser. The pinned Pyodide runtime is fetched from jsDelivr; interval data is not uploaded.</footer>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
